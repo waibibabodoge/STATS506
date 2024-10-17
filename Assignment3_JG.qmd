@@ -1,0 +1,273 @@
+---
+title: "Assignment3_JG"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Stats 506 Homework3 JG
+
+GitHub link:https://github.com/waibibabodoge/STATS506.git
+
+## Problem 1
+
+```{r}
+## a. Download the file VIX_D from this location, and determine how to read it into R. Then download the file DEMO_D from this location. Note that each page contains a link to a documentation file for that data set. Merge the two files to create a single data.frame, using the SEQN variable for merging. Keep only records which matched. Print out your total sample size, showing that it is now 6,980.
+library(haven)
+library(dplyr)
+VIX_D <- read_xpt("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment3/VIX_D.XPT")
+head(VIX_D)
+DEMO_D <- read_xpt("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment3/DEMO_D.XPT")
+head(DEMO_D)
+#merge
+merged <- inner_join(VIX_D, DEMO_D, by = "SEQN")
+nrow(merged)
+```
+
+```{r}
+## b. Without fitting any models, estimate the proportion of respondents within each 10-year age bracket (e.g. 0-9, 10-19, 20-29, etc) who wear glasses/contact lenses for distance vision. Produce a nice table with the results.
+#remove unavailable data
+merged_available <- merged %>%
+  filter(!is.na(merged$RIDAGEYR) & !is.na(merged$VIQ220))
+
+merged_age <- merged_available %>%
+  mutate(age_bracket = cut(merged_available$RIDAGEYR, breaks = seq(0, 90, by = 10), right = FALSE,
+                           labels = paste(seq(0, 80, by = 10), seq(9, 89, by = 10), sep = "-")))
+head(merged_age)
+
+proportion_table <- merged_age %>%
+  group_by(age_bracket) %>%
+  summarise(
+    total_respondents = n(),
+    glasses_users = sum(merged_age$VIQ220),
+    proportion = round(glasses_users / total_respondents, 2)
+  )
+print(proportion_table)
+```
+
+```{r}
+## c.Fit three logistic regression models predicting whether a respondent wears glasses/contact lenses for distance vision. Predictors:
+# 
+# age
+# age, race, gender
+# age, race, gender, Poverty Income ratio
+# Produce a table presenting the estimated odds ratios for the coefficients in each model, along with the sample size for the model, the pseudo-R^2, and AIC values.
+model1 <- glm(merged$VIQ220 ~ merged$RIDAGEYR, data = merged)
+model2 <- glm(merged$VIQ220 ~ merged$RIDAGEYR + merged$RIDRETH1 + merged$RIAGENDR, data = merged)
+model3 <- glm(merged$VIQ220 ~ merged$RIDAGEYR + merged$RIDRETH1 + merged$RIAGENDR + merged$INDFMPIR, data = merged)
+
+model_summaries <- list(model1, model2, model3)
+
+#' @param define pseudo r^2 = 1- log(LM)/log(L0)
+#' @return pseudo r^2
+pseudoR2 <- function(model) {
+  lm_model <- logLik(model)
+  null_model <- update(model, . ~ 1)
+  l0_model <- logLik(null_model)
+  pseudo_r2 <- 1 - (lm_model / l0_model)
+  
+  return(as.numeric(pseudo_r2))
+}
+
+results <- lapply(model_summaries, function(model) {
+  tibble(
+    Odds_Ratio = exp(coef(model)), 
+    Sample_Size = nobs(model),
+    Pseudo_R2 = as.numeric(pseudoR2(model)),
+    AIC = AIC(model)
+  )
+})
+
+# Combine the results
+results_df <- bind_rows(results, .id = "Model")
+results_df
+```
+
+```{r}
+## d. From the third model from the previous part, test whether the odds of men and women being wears of glasess/contact lenses for distance vision differs. Test whether the proportion of wearers of glasses/contact lenses for distance vision differs between men and women. Include the results of the each test and their interpretation.
+coef_gender <- summary(model3)$coefficients["merged$RIAGENDR", "Estimate"]
+odds_ratio_gender <- exp(coef_gender)
+table_gender <- table(merged$RIAGENDR, merged$VIQ220)
+print(table_gender)
+cat("Odds of men and women being wears of glasess/contact lenses for distance vision:", odds_ratio_gender, "\n")
+# Chi-squared test
+table_summarized <- matrix(c(1181, 2014, 1584, 1766), nrow = 2, byrow = TRUE)
+chisq_test <- chisq.test(table_summarized)
+print(chisq_test)
+```
+
+For the odds test the result is 0.8950932 \< 1 means men are 89.5% likely to wear glasses compare to women. For the proportion test, from the table the test result is having the p-value is \< 2.2 e-16 \< 0.05, means reject the H0 that there is no significant difference in proportion of wearers of glasses/contact lenses for distance vision differs between men and women. So conclude accept H1: there is significant difference in proportion of wearers of glasses/contact lenses for distance vision differs between men and women.
+
+## Problem 2
+
+```{r}
+## a. For these problems, do not use any of the tables whose names end in _list.
+## What year is the oldest movie from, and how many movies were released in that year? Answer this with a single SQL query.
+library(DBI)
+library(RSQLite)
+db_file_path <- "/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment3/sakila_master.db"
+sakila <- dbConnect(RSQLite::SQLite(), dbname = db_file_path)
+release_years <- dbGetQuery(sakila, "
+  SELECT release_year, COUNT(*) AS movie_count
+  FROM film
+  WHERE release_year = (SELECT MIN(release_year) FROM film)
+  GROUP BY release_year
+")
+print(release_years)
+```
+
+```{r}
+## b. For each of the following questions, solve them in two ways: First, use SQL query or queries to extract the appropriate table(s), then use regular R operations on those data.frames to answer the question. Second, use a single SQL query to answer the question.
+#What genre of movie is the least common in the data, and how many movies are of this genre?
+film_data <- dbGetQuery(sakila, "SELECT film.film_id, film.title, film_category.category_id
+                                   FROM film
+                                   JOIN film_category ON film.film_id = film_category.film_id")
+category_data <- dbGetQuery(sakila, "SELECT category_id, name 
+                                       FROM category")
+
+# R operations
+merged <- merge(film_data, category_data, by = "category_id")
+genre_counts <- table(merged$name)
+least_common_genre <- names(which.min(genre_counts))
+least_common_count <- min(genre_counts)
+cat("R: Least common genre:", least_common_genre, "of", least_common_count, "movies.\n")
+
+
+#a single SQL query
+least_common_query <- dbGetQuery(sakila, "
+  SELECT category.name, COUNT(*) AS movie_count
+    FROM film_category
+    JOIN category ON film_category.category_id = category.category_id
+   GROUP BY category.name
+   ORDER BY movie_count ASC
+   LIMIT 1
+")
+cat("SQL: Least common genre:", least_common_query$name, "of", least_common_query$movie_count, "movies.\n")
+```
+
+```{r}
+## c.Identify which country or countries have exactly 13 customers
+customer_data <- dbGetQuery(sakila, "
+  SELECT country, COUNT(customer_id) AS customer_count
+  FROM customer
+  JOIN address ON customer.address_id = address.address_id
+  JOIN city ON address.city_id = city.city_id
+  JOIN country ON city.country_id = country.country_id
+  GROUP BY country
+")
+# R operations
+countries_R <- customer_data[customer_data$customer_count == 13, ]
+print(countries_R)
+
+#a single SQL query
+countries_SQL <- dbGetQuery(sakila, "
+  SELECT country, COUNT(customer.customer_id) AS customer_count
+    FROM customer
+    JOIN address ON customer.address_id = address.address_id
+    JOIN city ON address.city_id = city.city_id
+    JOIN country ON city.country_id = country.country_id
+   GROUP BY country
+  HAVING COUNT(customer.customer_id) = 13
+")
+print(countries_SQL)
+```
+
+## Problem 3
+
+```{r}
+## a.What proportion of email addresses are hosted at a domain with TLD “.com”? (in the email, “angrycat@freemail.org”, “freemail.org” is the domain, and “.org” is the TLD (top-level domain).)
+library(dplyr)
+library(stringr)
+USRecords <- read.table("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment3/us-500.csv", sep = ",", header = TRUE)
+email <- USRecords$email
+email_checked <- email[!is.na(email) & email != ""]
+tlds <- str_extract(email_checked, "\\.[a-z]+$")
+com_count <- sum(tlds == ".com")
+total_count <- length(tlds)
+proportion_com <- com_count / total_count
+cat("Proportion of email addresses hosted at a domain with TLD '.com':", proportion_com, "\n")
+```
+
+```{r}
+## b. What proportion of email addresses have at least one non alphanumeric character in them? (Excluding the required “@” and “.” found in every email address.)
+email <- USRecords$email
+email_checked <- email[!is.na(email) & email != ""]
+has_non_alphanumeric <- function(email_checked) {
+  cleaned_email <- gsub("[@.]", "", email_checked)
+  return(any(!grepl("^[a-zA-Z0-9]*$", cleaned_email)))
+}
+non_alphanumeric_count <- 0
+for (e in email_checked) {
+  if (has_non_alphanumeric(e)) {
+    non_alphanumeric_count <- non_alphanumeric_count + 1
+  }
+}
+total_count <- length(email)
+
+proportion_non_alphanumeric <- non_alphanumeric_count / total_count
+cat("Proportion of email addresses have at least one non alphanumeric character:", proportion_non_alphanumeric, "\n")
+```
+
+```{r}
+## c.What are the top 5 most common area codes amongst all phone numbers? (The area code is the first three digits of a standard 10-digit telephone number.)
+phone_numbers <- c(USRecords$phone1, USRecords$phone2)
+phone_numbers <- phone_numbers[!is.na(phone_numbers) & phone_numbers != ""]
+
+area_codes <- substr(phone_numbers, 1, 3)
+areacode_counts <- as.data.frame(table(area_codes))
+colnames(areacode_counts) <- c("AreaCode", "Count")
+top5_areacodes <- areacode_counts %>%
+  arrange(desc(Count)) %>%
+  head(5)
+
+# Print the results
+print(top5_areacodes)
+```
+
+```{r}
+## d.Produce a histogram of the log of the apartment numbers for all addresses. (You may assume any number at the end of the an address is an apartment number.)
+library(dplyr)
+library(ggplot2)
+addresses <- USRecords$address
+addresses_checked <- addresses[!is.na(addresses) & addresses != ""]
+apartment_numbers <- sub(".*?([0-9]+)$", "\\1", addresses_checked)
+apartment_numbers <- gsub("[^0-9]", "", apartment_numbers)
+apartment_numbers <- as.numeric(apartment_numbers)
+apartment_numbers_checked <- apartment_numbers[!is.na(apartment_numbers)]
+
+log_apartment_numbers <- log(apartment_numbers_checked)
+
+ggplot(data.frame(LogApartmentNumbers = log_apartment_numbers), aes(x = LogApartmentNumbers)) +
+  geom_histogram(binwidth = 0.5, fill = "red") +
+  labs(title = "Histogram of Log of Apartment Numbers",
+       x = "Log of Apartment Numbers",
+       y = "Frequency")
+```
+
+```{r}
+## e.Benford’s law is an observation about the distribution of the leading digit of real numerical data. Examine whether the apartment numbers appear to follow Benford’s law. Do you think the apartment numbers would pass as real data?
+library(dplyr)
+library(ggplot2)
+
+leading_digits <- substr(as.character(apartment_numbers_checked), 1, 1)
+leading_digits <- as.numeric(leading_digits)
+observed_distribution <- table(leading_digits) / length(leading_digits)
+
+
+benford_distribution <- log10((1:9) + 1) - log10(1:9)
+benford_distribution <- benford_distribution / sum(benford_distribution)
+
+distribution_df <- data.frame(
+  digit = 1:9,
+  observed = as.numeric(observed_distribution[as.character(1:9)]),
+  expected = benford_distribution
+)
+
+observed_counts <- as.numeric(observed_distribution[as.character(1:9)]) * length(leading_digits)
+expected_counts <- benford_distribution * length(leading_digits)
+test_result <- chisq.test(observed_counts, p = expected_counts/sum(expected_counts))
+
+print(test_result)
+```
+
+As p-value of the test \> 2.2e-16 \< 0.05, means there is high significance between the observed distribution of the apartment numbers and Benford’s law, reject H0 that the apartment numbers appear to follow Benford’s law. Don't think the apartment numbers would pass as real data.

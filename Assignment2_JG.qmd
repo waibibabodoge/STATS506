@@ -1,0 +1,377 @@
+---
+title: "Assignment2_JG"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Stats 506 Homework2 JG
+
+GitHub link:https://github.com/waibibabodoge/STATS506.git
+
+## Problem 1
+
+```{r}
+##Problem 1
+## a)implement dice game
+## Implement this game using a loop.
+#' @param rolls integer: stands for the rolls of die
+#' @return total money win after #rolls and play money deduction
+#' @example 
+#' play_dice_1(100) stands for 100 times of rolls and shows the total winning as result.
+play_dice_1 <- function(rolls){
+  win <- rolls * -2
+  i <- 1
+  results <- sample(1:6, rolls, replace = TRUE)
+  while (i<= rolls){
+    if(results[i]==3){
+      win <- win + 6
+    }
+    if(results[i]==5){
+      win <- win + 10
+    }
+    else{
+      win <- win
+    }
+    i <- i + 1
+  }
+  return(win)
+}
+```
+
+```{r}
+##Problem 1
+## a)implement dice game
+## Implement this game using built-in R vectorized functions.
+#' @param rolls integer: stands for the rolls of die
+#' @return total money win after #rolls and play money deduction
+#' @example 
+#' play_dice_2(100) stands for 100 times of rolls and shows the total winning as result.
+play_dice_2 <- function(rolls) {
+  results <- sample(1:6, rolls, replace = TRUE)
+  win <- rolls * -2
+  winnings <- ifelse(results == 3, 6, 
+                     ifelse(results == 5, 10, 0))
+  total_win <- win + sum(winnings)
+  return(total_win)
+}
+```
+
+```{r}
+##Problem 1
+## a)implement dice game
+## Implement this by rolling all the dice into one and collapsing the die rolls into a single table(). (Hint: Be careful indexing the table - what happens if you make a table of a single dice roll? You may need to look to other resources for how to solve this.)
+#' @param rolls integer: stands for the rolls of die
+#' @return total money win after #rolls and play money deduction
+#' @example 
+#' play_dice_3(100) stands for 100 times of rolls and shows the total winning as result.
+play_dice_3 <- function(rolls) {
+  win <- rolls * -2
+  results <- sample(1:6, rolls, replace = TRUE)
+  results_table <- table(results)
+  if (3 %in% names(results_table)) {
+    win <- win + (results_table["3"] * 6)
+    print(results_table["3"])
+  }
+  if (5 %in% names(results_table)) {
+    win <- win + (results_table["5"] * 10)
+    print(results_table["5"])
+  }
+  
+  return(win)
+}
+```
+
+```{r}
+##Problem 1
+## a)implement dice game
+## Implement this game by using one of the “apply” functions
+#' @param rolls integer: stands for the rolls of die
+#' @return total money win after #rolls and play money deduction
+#' @example 
+#' play_dice_4(100) stands for 100 times of rolls and shows the total winning as result.
+play_dice_4 <- function(rolls) {
+  win <- rolls * -2
+  results <- sample(1:6, rolls, replace = TRUE)
+  # Use sapply
+  winnings <- sapply(results, function(result) {
+    if (result == 3) {
+      return(6)
+    } else if (result == 5) {
+      return(10)
+    } else {
+      return(0)
+    }
+  })
+  total_win <- win + sum(winnings)
+  
+  return(total_win)
+}
+```
+
+```{r}
+##Problem 1
+## b)Demonstrate that all versions work. Do so by running each a few times, once with an input a 3, and once with an input of 3,000.
+print("version 1")
+play_dice_1(3)
+play_dice_1(3000)
+print("version 2")
+play_dice_2(3)
+play_dice_2(3000)
+print("version 3")
+play_dice_3(3)
+play_dice_3(3000)
+print("version 4")
+play_dice_4(3)
+play_dice_4(3000)
+```
+
+```{r}
+##Problem 1
+## c)Demonstrate that the four versions give the same result. Test with inputs 3 and 3,000. (You will need to add a way to control the randomization.)
+play_dice_1 <- function(rolls){
+  win <- rolls * -2
+  i <- 1
+  set.seed(1)
+  results <- sample(1:6, rolls, replace = TRUE)
+  while (i<= rolls){
+    if(results[i]==3){
+      win <- win + 6
+    }
+    if(results[i]==5){
+      win <- win + 10
+    }
+    else{
+      win <- win
+    }
+    i <- i + 1
+  }
+  return(win)
+}
+
+play_dice_2 <- function(rolls) {
+  set.seed(1)
+  results <- sample(1:6, rolls, replace = TRUE)
+  win <- rolls * -2
+  winnings <- ifelse(results == 3, 6, 
+                     ifelse(results == 5, 10, 0))
+  total_win <- win + sum(winnings)
+  return(total_win)
+}
+
+play_dice_3 <- function(rolls) {
+  win <- rolls * -2
+  set.seed(1)
+  results <- sample(1:6, rolls, replace = TRUE)
+  results_table <- table(results)
+  if (3 %in% names(results_table)) {
+    win <- win + (results_table["3"] * 6)
+  }
+  if (5 %in% names(results_table)) {
+    win <- win + (results_table["5"] * 10)
+  }
+  
+  return(as.numeric(win))
+}
+
+play_dice_4 <- function(rolls) {
+  win <- rolls * -2
+  set.seed(1)
+  results <- sample(1:6, rolls, replace = TRUE)
+  # Use sapply
+  winnings <- sapply(results, function(result) {
+    if (result == 3) {
+      return(6)
+    } else if (result == 5) {
+      return(10)
+    } else {
+      return(0)
+    }
+  })
+  total_win <- win + sum(winnings)
+  
+  return(total_win)
+}
+result1 <- play_dice_1(3)
+result2 <- play_dice_2(3)
+result3 <- play_dice_3(3)
+result4 <- play_dice_4(3)
+# Check results
+identical(result1, result2, result3, result4)
+
+result11 <- play_dice_1(3000)
+result22 <- play_dice_2(3000)
+result33 <- play_dice_3(3000)
+result44 <- play_dice_4(3000)
+# Check results
+identical(result11, result22, result33, result44)
+```
+
+```{r}
+##Problem 1
+## d)Use the microbenchmark package to clearly demonstrate the speed of the implementations. Compare performance with a low input (1,000) and a large input (100,000). Discuss the results
+library(microbenchmark)
+microbenchmark(play_dice_1(1000),play_dice_2(1000),play_dice_3(1000),play_dice_4(1000))
+microbenchmark(play_dice_1(100000),play_dice_2(100000),play_dice_3(100000),play_dice_4(100000))
+```
+
+From the means and maxes of the charts of each algorithm, it is easy to see the increase input size makes the mean speed of implementation faster, which means the scale of the process is going well. For method 4, both of the low input and high input speed are significantly slower than others, with the max of lower input 2107.32 ms (but performing better for the high input) meaning it is not the efficient one for this problem comparing with the others (basically because of the apply function has higher complexity). For method 1 it is also increasing speed for the high input, the means of both are little higher than the fastest one but it's fine. For method 2 and 3, both of them getting the similar fastest speed around 6ms for the high input while the low input of method 3 is much slower than method 2, meaning method 3 is having good scalability.
+
+```{r}
+##Problem 1
+## e)Do you think this is a fair game? Defend your decision with evidence based upon a Monte Carlo simulation.
+## Since the results of all methods are the same, directly use fastest one method analysised from previous question and get the results.
+#' @param rolls integer: stands for the rolls of die
+#' @return total money win after #rolls and play money deduction
+#' @example 
+#' play_dice_4(100) stands for 100 times of rolls and shows the total winning as result.
+play_dice_2 <- function(rolls) {
+  set.seed(1)
+  results <- sample(1:6, rolls, replace = TRUE)
+  win <- rolls * -2
+  winnings <- ifelse(results == 3, 6, 
+                     ifelse(results == 5, 10, 0))
+  total_win <- win + sum(winnings)
+  return(total_win)
+}
+
+# simulation
+results <- play_dice_2(1000)
+results_simulation <- play_dice_1(10000)
+
+simulation_results <- numeric(results_simulation)
+
+for (i in 1:results_simulation) {
+  simulation_results[i] <- results
+}
+
+mean_winnings <- mean(simulation_results)
+median_winnings <- median(simulation_results)
+win_ratio <- sum(simulation_results > 0) / results_simulation * 100
+
+cat("Mean Winnings: $", mean_winnings, "\n")
+cat("Median Winnings: $", median_winnings, "\n")
+cat("Win Ratio (Percentage of Winning Simulations): ", win_ratio, "%\n")
+```
+
+Based upon the Monte Carlo simulation, I don't think it is a fair game (but players would love) since the win ratio is 100% (tried to use a small number of test still same result, only when numbers are too small like one or two gets different result that winning rate is 0 and winnings is less than 0, but for this situation is still not fair) that almost every player win the game and the mean and median of the game winning is high.
+
+## Problem 2
+
+```{r}
+##Problem2
+## a.The names of the variables in this data are way too long. Rename the columns of the data to more reasonable lengths.
+cars <- read.table("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment2_JG/cars.csv", sep = ",", header = TRUE)
+names(cars) <- c("height",
+                 "length",
+                 "width",
+                 "eg_driveline",
+                 "eg_type",
+                 "eg_hybrid",
+                 "eg_gearsnum",
+                 "eg_transmission",
+                 "fuel_city",
+                 "fuel_type",
+                 "fuel_hwy",
+                 "classification",
+                 "id_id",
+                 "id_make",
+                 "id_model",
+                 "id_year",
+                 "id_horsepower",
+                 "id_torque")
+```
+
+```{r}
+##Problem2
+## b.Restrict the data to cars whose Fuel Type is “Gasoline”.
+cars_gasoline <- cars[cars$fuel_type == "Gasoline",]
+nrow(cars)
+nrow(cars_gasoline)
+```
+
+```{r}
+##Problem2
+## c.Examine the distribution of highway gas mileage. Consider whether a transformation could be used. If so, generate the transformed variable and use this variable going forward. If not, provide a short justification.
+library(ggplot2)
+summary(cars_gasoline$fuel_hwy)
+ggplot(cars_gasoline, aes(x = fuel_hwy)) +
+  geom_histogram(binwidth = 2, fill = "blue") +
+  labs(title = "Distribution of Highway Gas Mileage",
+       x = "Highway MPG",
+       y = "Frequency")
+```
+
+```{r}
+#transformation of fuel_hwy to get rid of the outrange number, from the plot easy to see most of predictors are < 50
+cars_hwy <- cars_gasoline[cars_gasoline$fuel_hwy < 50,]
+# test again
+summary(cars_hwy$fuel_hwy)
+ggplot(cars_hwy, aes(x = fuel_hwy)) +
+  geom_histogram(binwidth = 1, fill = "red") +
+  labs(title = "Distribution of Highway Gas Mileage",
+       x = "Highway MPG",
+       y = "Frequency")
+# seems little left skewed, take log of fuel_hwy to make it more normal distributed
+ggplot(cars_hwy, aes(x = log(fuel_hwy))) +
+  geom_histogram(binwidth = 0.1, fill = "yellow") +
+  labs(title = "Distribution of Log(Highway Gas Mileage)",
+       x = "Log(Highway MPG)",
+       y = "Frequency")
+# now the plot looks good
+```
+
+Based on the distribution of the plot, it is clear that there is an outrange number of 223 as the max as the mean = 24.97 while the upper and lower quantiles are all focusing \< 50. The other part of the plot looks like little left skewed, so the transformation should be used for that number and left skew problem, in order to do that, strict the numbers in the range and try to summarize again. See little left-skewed, take log(cars_hwy\$fuel_hwy) to make it more normal distribution.
+
+```{r}
+# ##Problem2
+# ## d.Fit a linear regression model predicting MPG on the highway. The predictor of interest is torque. Control for:
+# 
+# The horsepower of the engine
+# All three dimensions of the car
+# The year the car was released, as a categorical variable.
+# Briefly discuss the estimated relationship between torque and highway MPG. Be precise about the interpretation of the estimated coefficient.
+cars_hwy$id_year <- as.factor(cars_hwy$id_year)
+model <- lm(log(fuel_hwy) ~ id_torque + I(id_horsepower + length + width + height) + id_year, data = cars_hwy)
+summary(model)
+```
+
+log(fuel_hwy)=3.55−0.00159\*id_torque
+
+The coefficient for torque is negative that as torque increase 1 unit, log(MPG) decrease for 0.00159 unit while other controlled variables are considered constant. The p value for torque is also \<0.05 means it is significant. Others are controlled variables: considered together, and categorical variable: indicate the change comparing with the year before.
+
+```{r}
+# ##Problem2
+# ## e.It seems reasonable that there may be an interaction between torque and horsepower. Refit the model (with lm) and generate an interaction plot, showing how the relationship between torque and MPG changes as horsepower changes. Choose reasonable values of torque, and show lines for three different reasonable values of horsepower.
+# (Hint: If you choose to use the interactions package for this, look at the at = argument to help with how year comes into play - choose a reasonable single value for year.
+library(dplyr)
+library(interactions)
+cars_hwy$id_year <- as.factor(cars_hwy$id_year)
+model_tmh <- lm(log(fuel_hwy) ~ id_torque * id_horsepower + length + width + height + id_year, data = cars_hwy)
+
+interact_plot(model_tmh, 
+               pred = id_torque, 
+               modx = id_horsepower, 
+               # test year here
+               at = list(id_year = "2012"),
+               data = cars_hwy)
+```
+
+The relationship between torque and MPG are negatively related that while torque increases, the MPG decreases. For the changes as horsepower changes, as the horsepower increase, the MPG increase, as the horsepower decrease, the MPG decrease so it is positively related between horsepower and MPG. So the relationship between torque and MPG changes as horsepower changes, it is still negatively related but as horsepower increase, the negativity between torque and MPG gets less.
+
+```{r}
+##Problem2
+## f.Calculate beta hat from d. manually (without using lm) by first creating a proper design matrix, then using matrix algebra to estimate beta. Confirm that you get the same result as lm did prior.
+library(dplyr)
+
+cars_hwy$id_year <- as.factor(cars_hwy$id_year)
+X <- model.matrix(~ id_torque + I(id_horsepower + length + width + height) + id_year, data = cars_hwy)
+
+log_fuel_hwy <- log(cars_hwy$fuel_hwy)
+X_transpose <- t(X)
+beta_hat <- solve(X_transpose %*% X) %*% (X_transpose %*% log_fuel_hwy)
+
+beta_hat
+```
+
+I get the same result as lm did prior.
