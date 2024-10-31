@@ -1,0 +1,260 @@
+---
+title: "Assignment4_JG"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Stats 506 Homework4 JG
+
+GitHub link:https://github.com/waibibabodoge/STATS506.git
+
+## Problem 1
+
+```{r}
+# # ## a.Generate a table (which can just be a nicely printed tibble) reporting the mean and median departure delay per airport. 
+# Generate a second table (which again can be a nicely printed tibble) reporting the mean and median arrival delay per airport. Exclude any destination with under 10 flights. Do this exclusion through code, not manually.
+# Additionally,
+# 
+# done: Order both tables in descending mean delay.
+# done: Both tables should use the airport names not the airport codes.
+# done: Both tables should print all rows.
+# done:Load necessary libraries
+library(nycflights13)
+library(dplyr)
+library(tidyr)
+# Departure delays per airport
+departure_delays <- flights %>%
+  group_by(dest) %>%
+  summarize(
+    mean_dep_delay = mean(dep_delay, na.rm = TRUE),
+    median_dep_delay = median(dep_delay, na.rm = TRUE),
+    flight_count = n()
+  ) %>%
+  filter(flight_count >= 10) %>%
+  left_join(airports, by = c("dest" = "faa")) %>%
+  select(airport = name, mean_dep_delay, median_dep_delay) %>%
+  arrange(desc(mean_dep_delay))
+
+departure_delays %>%
+  as_tibble() %>%
+  print()
+
+# Arrival delays per airport
+arrival_delays <- flights %>%
+  group_by(dest) %>%
+  summarize(
+    mean_arr_delay = mean(arr_delay, na.rm = TRUE),
+    median_arr_delay = median(arr_delay, na.rm = TRUE),
+    flight_count = n()
+  ) %>%
+  filter(flight_count >= 10) %>%
+  left_join(airports, by = c("dest" = "faa")) %>%
+  select(airport = name, mean_arr_delay, median_arr_delay) %>%
+  arrange(desc(mean_arr_delay))
+
+arrival_delays %>%
+  as_tibble() %>%
+  print()
+```
+
+```{r}
+## b. How many flights did the aircraft model with the fastest average speed take? Produce a tibble with 1 row, and entires for the model, average speed (in MPH) and number of flights.
+library(nycflights13)
+library(dplyr)
+library(tidyr)
+
+fastest_speed <- flights %>%
+  left_join(planes, by = "tailnum") %>%
+  mutate(speed_mph = distance / (air_time / 60)) %>%
+  group_by(model) %>%
+  summarise(
+    avg_speed = mean(speed_mph, na.rm = TRUE),
+    num_flights = n()
+  ) %>%
+  arrange(desc(avg_speed)) %>%
+  slice(1) %>%
+  select(model, avg_speed, num_flights)
+
+
+# Tibble
+fastest <- as_tibble(fastest_speed)
+print(fastest)
+```
+
+## Problem 2
+
+```{r}
+# #| Use the tidyverse for this problem. In particular, use piping and dplyr as much as you are able. Note: Use of any deprecated functions will result in a point loss.
+#
+# Load the Chicago NNMAPS data we used in the visualization lectures. Write a function get_temp() that allows a user to request the average temperature for a given month. The arguments should be:
+#
+# month: Month, either a numeric 1-12 or a string.
+# year: A numeric year.
+# data: The data set to obtain data from.
+# celsius: Logically indicating whther the results should be in celsius. Default FALSE.
+# average_fn: A function with which to compute the mean. Default is mean.
+# The output should be a numeric vector of length 1. The code inside the function should, as with the rest of this problem, use the tidyverse. Be sure to sanitize the input.
+#
+# Prove your code works by evaluating the following. Your code should produce the result, or a reasonable error message.
+# Load necessary libraries
+library(dplyr)
+library(tidyr)
+
+nnmaps <- read.csv("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment4_JG/chicago-nmmaps.csv")
+
+
+#' @param month numeric(1-12) or character string representing the month (e.g., "January", "Feb", etc.)
+#' Error message return when invalid
+#' 
+#' @param year numeric year
+#' 
+#' @param data data frame containing temperature data
+#' The data frame must include `month_numeric` and `temp`
+#' 
+#' @param celsius logical value indicating whether to return the temperature in Celsius. Defaults FALSE
+#' 
+#' @param average_fn calculate the average temperature. 'mean'
+#'
+#' @return A numeric value representing the average temperature for the specified month and year
+#' Errors will be returned if no match or invalid
+get_temp <- function(month, year, data, celsius = FALSE, average_fn = mean) {
+  if (is.numeric(month)) {
+    if (month < 1 || month > 12) {
+      return("Invalid month")
+    }
+  } else if (is.character(month)) {
+    month_num <- match(tolower(month), tolower(month.abb))
+    if (is.na(month_num)) {
+      month_num <- match(tolower(month), tolower(month.name))
+      if (is.na(month_num)) {
+        return("Invalid month")
+      }
+    }
+    month <- month_num
+  } else {
+    return("Invalid month")
+  }
+  
+  result <- data %>%
+    filter(year == !!year, month_numeric == !!month)
+  result_temps <- result$temp
+  if (length(result_temps) == 0 || all(is.na(result_temps))) {
+    return("No matching data")
+  }
+
+  result_temps <- result_temps[!is.na(result_temps)]
+  
+  avg_temp <- average_fn(result_temps)
+  if (celsius) {
+    avg_temp <- (avg_temp - 32) * 5 / 9
+  }
+
+  return(avg_temp)
+}
+
+# Prove your code works by evaluating the following. Your code should produce the result, or a reasonable error message.
+run_tests <- function() {
+  test_cases <- list(
+    case1 = get_temp("Apr", 1999, data = nnmaps),
+    case2 = get_temp("Apr", 1999, data = nnmaps, celsius = TRUE),
+    case3 = get_temp(10, 1998, data = nnmaps, average_fn = median),
+    case4 = get_temp(13, 1998, data = nnmaps),
+    case5 = get_temp(2, 2005, data = nnmaps),
+    case6 = get_temp("November", 1999, data = nnmaps, celsius = TRUE,
+                     average_fn = function(x) {
+                       x %>% sort -> x
+                       x[2:(length(x) - 1)] %>% mean
+                     })
+  )
+  
+  return(test_cases)
+}
+
+test_results <- run_tests()
+for (case in names(test_results)) {
+  cat(paste(case, ":", test_results[[case]], "\n"))
+}
+```
+
+## Problem 3
+
+```{r}
+# Note: This is, intentionally, a very open-ended question. There is no “right” answer. The goal is for you to explore your plotting options, and settle on something reasonable. You can use base R, ggplot, or soemthing else. You’ll likely have to look online for resources on plotting beyond what we covered in class.
+# 
+# This dataset lists characteristics of art sales. Download the file named “df_for_ml_improved_new_market” (NOT the “df_for_ml_improved_new_market_1” version!). For each of the following, produce a publication-ready plot which demonstrates the answer to the question. Use your plot to support an argument for your question.
+# 
+
+## a.Is there a change in the sales price in USD over time?
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+art <- read.csv("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment4_JG/df_for_ml_improved_new_market.csv")
+# Average sales price by year
+avg_year <- art %>%
+  group_by(year) %>%
+  summarize(avg_price = mean(price_usd, na.rm = TRUE))
+ggplot(avg_year, aes(x = year, y = avg_price)) +
+  geom_line(color = "blue", linewidth = 1) +
+  geom_point(color = "red", size = 2) +
+  labs(title = "Average Art Sales Price",
+       x = "Year",
+       y = "Average Sales Price (USD)") +
+  theme_minimal() +
+  theme(text = element_text(size = 14),
+        plot.title = element_text(hjust = 0.5))
+print("The line plot shows a significant increase in the average sales price of art overall, with a peak around 2008 a little decrease after then. This indicates a general upward trend in the sales price in USD over time, with a particularly sharp increase on 2008.")
+```
+
+```{r}
+## b.Does the distribution of genre of sales across years appear to change?
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+art_long <- art %>%
+  gather(key = "Genre", value = "Count", starts_with("Genre___")) %>%
+  filter(Count == 1) %>%
+  mutate(Genre = gsub("Genre___", "", Genre))
+
+# Distribution of genres across years
+ggplot(art_long, aes(x = factor(year), fill = Genre)) +
+  geom_bar(position = "stack") +
+  labs(title = "Distribution of Genre of Sales Across Years",
+       x = "Year",
+       y = "Number of Sales") +
+  theme_minimal() +
+  theme(text = element_text(size = 14),
+        plot.title = element_text(hjust = 0.5),
+        legend.position = "right")
+print("The distribution of genre of sales across years appear to change. The increase in total number of sales is significant and the hight of each genre grows at the same time especially for 2000 and after. For each genre, sculpture in purple is increasing stable but dramatically for the latest 2 years. For print, it has stable increase. For photography, the increases after 2000 are dramatic and seems to take great proportion in the total amount. For painting, it has stable increase and in years like 2007-2008 has little decrease. For others, the change is not so significant but still having growing trend over. Overall, at first, the sales are more evenly distributed among various genres, but as time progresses, certain genres like Photography take more percentage, particularly after the middle of 20s, indicates the change of genre of sales overtime. The trend matches the previous result of overall average sales price.")
+```
+
+```{r}
+# ## c. How does the genre affect the change in sales price over time?
+# You will be graded on:
+# 
+# Is the type of graph & choice of variables appropriate to answer the question?
+# Is the graph clear and easy to interpret?
+# Is the graph publication ready?
+
+# Average price per genre per year
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+genre_avg_price <- art_long %>%
+  group_by(year, Genre) %>%
+  summarize(avg_price_usd = mean(price_usd, na.rm = TRUE), .groups = "drop")
+
+# Average sales price per genre over time
+ggplot(genre_avg_price, aes(x = year, y = avg_price_usd, color = Genre)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Change in Sales Price Over Time by Genre",
+       x = "Year",
+       y = "Average Sales Price (USD)") +
+  theme_minimal() +
+  theme(text = element_text(size = 14),
+        plot.title = element_text(hjust = 0.5))
+print("The genre affects the change in sales price overtime with the sales price of some genre like photography increase high during the 2004-2008 period. The other genre seems having stable increase trend which is also reasonable. After 2008, it seems to have decrease trend on all genres. Consider the answer from previous quesion, the photography genre has great increase in distribution of sales, also shows great increase sales price here, the other genre are basically having stable increase trend overall also show stable increase in sales price in this plot, showing correlated relation between genre and sales price. The results matches. The trends of great increase before 2008 and decrease after also match the previous answers.")
+```
