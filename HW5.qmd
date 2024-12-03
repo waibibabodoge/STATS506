@@ -1,0 +1,472 @@
+---
+title: "Assignment5_JG"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Homework 5 JG
+
+GitHub link:<https://github.com/waibibabodoge/STATS506.git>
+
+## Problem1
+
+```{r}
+library(Rcpp)
+
+cppFunction('
+  // GCD Function using Euclidean algorithm
+  int gcd(int a, int b) {
+    while (b != 0) {
+      int temp = b;
+      b = a % b;
+      a = temp;
+    }
+    return a;
+  }
+  
+  // LCM Function: LCM(a, b) = abs(a * b) / GCD(a, b)
+  int lcm(int a, int b) {
+    return abs(a * b) / gcd(a, b);
+  }
+')
+
+setClass(
+  "Rational",
+  slots = list(
+    numerator = "integer",
+    denominator = "integer"
+  )
+)
+
+# a.1 Constructor to initialize Rational numbers
+#' @param .Object The object of class `Rational`
+#' @param numerator The numerator of the rational number. Integer.
+#' @param denominator The denominator of the rational number. Integer. A zero denominator will result in an error.
+#' @return The initialized `Rational` object with the specified numerator and denominator.
+setMethod(
+  f = "initialize",
+  signature = "Rational",
+  definition = function(.Object, numerator, denominator) {
+    .Object@numerator <- as.integer(numerator)
+    .Object@denominator <- as.integer(denominator)
+    
+    # a.2 Validator: Ensure the denominator is non-zero
+    if (.Object@denominator == 0) {
+      stop("Denominator can't be zero.")
+    }
+    
+    return(.Object)
+  }
+)
+
+# a.2 Simplify method (reduce the fraction)
+#' @param object An object of class `Rational`.
+#' @return A simplified `Rational` and the numerator and denominator reduced by GCD.
+setGeneric(
+  "simplify",
+  function(object) {
+    standardGeneric("simplify")
+  }
+)
+
+setMethod(
+  "simplify",
+  "Rational",
+  function(object) {
+    gcd <- function(a, b) {
+      while (b != 0) {
+        temp <- b
+        b <- a %% b
+        a <- temp
+      }
+      return(a)
+    }
+    
+    # Calculate the GCD
+    g <- gcd(abs(object@numerator), abs(object@denominator))
+    
+    # Simplify
+    object@numerator <- as.integer(object@numerator / g)
+    object@denominator <- as.integer(object@denominator / g)
+    
+    return(object)
+  }
+)
+
+# a.3 Show method to print rational numbers in "a/b" form
+#' @param object An object of class `Rational`
+#' @return Show the form of "a/b"
+setMethod(
+  "show",
+  "Rational",
+  function(object) {
+    cat(object@numerator, "/", object@denominator, "\n", sep = "")
+  }
+)
+
+# a.4 Quotient method for decimal value
+#' @param object An object of class `Rational`
+#' @param digits The number of decimal places to which the quotient should be rounded. If it is null for quotient, no need for the process.
+#' @return The quotient of the rational number.
+setGeneric(
+  "quotient",
+  function(object, digits = NULL) {
+    standardGeneric("quotient")
+  }
+)
+
+setMethod(
+  "quotient",
+  "Rational",
+  function(object, digits = NULL) {
+    result <- object@numerator / object@denominator
+    if (!is.null(digits)) {
+      print(round(result, digits))
+    } else {
+      print(result)
+    }
+    return(result)
+  }
+)
+
+# a.5 Arithmetic operations (addition, subtraction, multiplication, division)
+#' @param addition
+#' @param e1 A `Rational` object, first rational number in the addition.
+#' @param e2 A `Rational` object, second rational number in the addition.
+#' @return A simplified `Rational`, sum of two rational numbers.
+setMethod(
+  "+",
+  c("Rational", "Rational"),
+  function(e1, e2) {
+    num <- e1@numerator * e2@denominator + e1@denominator * e2@numerator
+    den <- e1@denominator * e2@denominator
+    return(simplify(new("Rational", numerator = num, denominator = den)))
+  }
+)
+
+#' @param subtraction
+#' @param e1 A `Rational` object, first rational number in the subtraction.
+#' @param e2 A `Rational` object, second rational number in the subtraction.
+#' @return A simplified `Rational`, difference of two rational numbers.
+setMethod(
+  "-",
+  c("Rational", "Rational"),
+  function(e1, e2) {
+    num <- e1@numerator * e2@denominator - e1@denominator * e2@numerator
+    den <- e1@denominator * e2@denominator
+    return(simplify(new("Rational", numerator = num, denominator = den)))
+  }
+)
+
+#' @param multiplication
+#' @param e1 A `Rational` object, first rational number in the multiplication.
+#' @param e2 A `Rational` object, second rational number in the multiplication.
+#' @return A simplified `Rational`, product of the two rational numbers.
+setMethod(
+  "*",
+  c("Rational", "Rational"),
+  function(e1, e2) {
+    num <- e1@numerator * e2@numerator
+    den <- e1@denominator * e2@denominator
+    return(simplify(new("Rational", numerator = num, denominator = den)))
+  }
+)
+
+#' @param division
+#' @param e1 A `Rational` object, first rational number, numerator.
+#' @param e2 A `Rational` object, second rational number, denominator.
+#' @return A simplified `Rational`, quotient of the two rational numbers.
+setMethod(
+  "/",
+  c("Rational", "Rational"),
+  function(e1, e2) {
+    num <- e1@numerator * e2@denominator
+    den <- e1@denominator * e2@numerator
+    return(simplify(new("Rational", numerator = num, denominator = den)))
+  }
+)
+```
+
+```{r}
+# b.Use your rational class to create three objects: r1: 24/6 r2:7/230 r3: 0/4
+r1 <- new("Rational", numerator = 24, denominator = 6)
+r2 <- new("Rational", numerator = 7, denominator = 230)
+r3 <- new("Rational", numerator = 0, denominator = 4)
+```
+
+```{r error = TRUE}
+# b.Evaluate the following code (remember you can tell Quarto not to stop on errors):
+r1
+r3
+r1 + r2
+r1 - r2
+r1 * r2
+r1 / r2
+r1 + r3
+r1 * r3
+r2 / r3
+quotient(r1)
+quotient(r2)
+quotient(r2, digits = 3)
+quotient(r2, digits = 3.14)
+quotient(r2, digits = "avocado")
+q2 <- quotient(r2, digits = 3)
+q2
+quotient(r3)
+simplify(r1)
+simplify(r2)
+simplify(r3)
+```
+
+```{r}
+# c. Constructor with enhanced validation
+#' @param .Object Instance of the `Rational` class.
+#' @param numerator A numeric number numerator of the rational number.
+#' @param denominator A numeric number denominator of the rational number.
+#' @return A `Rational` result after passing the validation checks
+setMethod(
+  f = "initialize",
+  signature = "Rational",
+  definition = function(.Object, numerator, denominator) {
+    # Check denominator of 0
+    if (denominator == 0) {
+      stop("Denominator cannot be zero.")
+    }
+    
+    # Check numerator & denominator of NA
+    if (is.na(numerator) || is.na(denominator)) {
+      stop("Numerator and denominator cannot be NA.")
+    }
+    
+    # Check numerator & denominator of integers
+    if (!is.integer(numerator) && !is.numeric(numerator)) {
+      stop("Numerator must be an integer.")
+    }
+    if (!is.integer(denominator) && !is.numeric(denominator)) {
+      stop("Denominator must be an integer.")
+    }
+    
+    # Set numerator and denominator to integer type when required
+    if (!is.integer(numerator)) {
+      numerator <- as.integer(numerator)
+    }
+    if (!is.integer(denominator)) {
+      denominator <- as.integer(denominator)
+    }
+    .Object@numerator <- numerator
+    .Object@denominator <- denominator
+    
+    return(.Object)
+  }
+)
+```
+
+## Problem2
+
+```{r}
+# a.Regenerate your plot which addresses the second question from last time:Does the distribution of genre of sales across years appear to change?
+# You may copy your plot from last time, or copy my plot from the solutions, or come up with your own new plot.
+# Load required libraries
+library(dplyr)
+library(tidyr)
+library(plotly)
+art <- read.csv("/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Assignment4_JG/df_for_ml_improved_new_market.csv")
+
+art_long <- art %>%
+  gather(key = "Genre", value = "Count", starts_with("Genre___")) %>%
+  filter(Count == 1) %>%
+  mutate(Genre = gsub("Genre___", "", Genre))
+
+p <- art_long %>%
+  count(year, Genre) %>%
+  plot_ly(x = ~year, y = ~n, color = ~Genre, type = "bar", 
+          hoverinfo = "x+y+name", 
+          text = ~paste(Genre, "<br>", "Sales: ", n),
+          textposition = "inside", 
+          showlegend = TRUE) %>%
+  layout(title = "Distribution of Genre of Sales Across Years",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Number of Sales"),
+         barmode = "stack",
+         legend = list(title = list(text = 'Genre')))
+
+p
+print("The distribution of genre of sales across years appear to change. The increase in total number of sales is significant and the hight of each genre grows at the same time especially for 2000 and after. For each genre, sculpture in purple is increasing stable but dramatically for the latest 2 years. For print, it has stable increase. For photography, the increases after 2000 are dramatic and seems to take great proportion in the total amount. For painting, it has stable increase and in years like 2007-2008 has little decrease. For others, the change is not so significant but still having growing trend over. Overall, at first, the sales are more evenly distributed among various genres, but as time progresses, certain genres like Photography take more percentage, particularly after the middle of 20s, indicates the change of genre of sales overtime. The trend matches the previous result of overall average sales price.(Same interpretation as HW4 as the same question just using plotly here)")
+```
+
+```{r}
+# b. Generate an interactive plot with plotly that can address both of these questions from last time:
+# 
+# Is there a change in the sales price in USD over time?
+# 
+# How does the genre affect the change in sales price over time?
+# 
+# This should be a single interactive plot, with which a user can manipulate the view to be able to look at change over time overall, or by genre.
+library(dplyr)
+library(tidyr)
+library(plotly)
+
+# Transform into long format
+art_long <- art %>%
+  gather(key = "Genre", value = "Count", starts_with("Genre___")) %>%
+  filter(Count == 1) %>%
+  mutate(Genre = gsub("Genre___", "", Genre))
+
+# Data by Genre
+sales_data <- art_long %>%
+  group_by(year, Genre) %>%
+  summarize(avg_price = mean(price_usd, na.rm = TRUE), .groups = "drop")
+
+# Data for all genres
+overall_sales_data <- art_long %>%
+  group_by(year) %>%
+  summarize(avg_price = mean(price_usd, na.rm = TRUE), .groups = "drop")
+
+p <- plot_ly() %>%
+  add_lines(data = overall_sales_data, 
+            x = ~year, y = ~avg_price, 
+            name = "All Genres", 
+            line = list(color = 'green', width = 3), 
+            hoverinfo = "x+y+name", 
+            visible = TRUE) %>%
+  add_lines(data = sales_data, 
+            x = ~year, y = ~avg_price, 
+            color = ~Genre, 
+            type = 'scatter', mode = 'lines+markers',
+            hoverinfo = "x+y+name", 
+            visible = FALSE) %>%
+  
+  layout(title = "Change in Sales Price Over Time by Genre",
+         xaxis = list(title = "Year"),
+         yaxis = list(title = "Average Sales Price (USD)"),
+         updatemenus = list(
+           list(
+             type = "dropdown",
+             x = 0.1,
+             xanchor = "left",
+             y = 1.15,
+             yanchor = "top",
+             buttons = list(
+               list(
+                 label = "All Genres",
+                 method = "update",
+                 args = list(
+                   # Only show all genre
+                   list(visible = c(TRUE, rep(FALSE, length(unique(sales_data$Genre))))),
+                   list(title = "Change in Sales Price Over Time of All Genres"))),
+               list(
+                 label = "By Genre",
+                 method = "update",
+                 args = list(
+                    # Show overall and by genretrends
+                   list(visible = c(TRUE, rep(TRUE, length(unique(sales_data$Genre))))),
+                   list(title = "Change in Sales Price Over Time By Genre")))
+             )
+           )
+         ),
+         legend = list(title = list(text = "Genre")),
+         font = list(size = 14),
+         hovermode = "closest")
+p
+
+#i
+print("The line plot shows a significant increase in the average sales price of art overall, with a peak around 2008 a little decrease after then. This indicates a general upward trend in the sales price in USD over time, with a particularly sharp increase on 2008.\n")
+#ii
+print("The genre affects the change in sales price overtime with the sales price of some genre like photography increase high during the 2004-2008 period. The other genre seems having stable increase trend which is also reasonable. After 2008, it seems to have decrease trend on all genres. Consider the answer from previous quesion, the photography genre has great increase in distribution of sales, also shows great increase sales price here, the other genre are basically having stable increase trend overall also show stable increase in sales price in this plot, showing correlated relation between genre and sales price. The results matches. The trends of great increase before 2008 and decrease after also match the previous answers.(Same interpretation as HW4 as the same question just using plotly here)")
+```
+
+## Problem3
+
+```{r}
+# # a. Use the data.table for this problem. In particular, use piping and dplyr as much as you are able. Note: Use of any deprecated functions will result in a point loss.
+# 
+# Install and load the package nycflights13.
+# 
+# Generate a table (which can just be a nicely printed tibble) reporting the mean and median departure delay per airport. Generate a second table (which again can be a nicely printed tibble) reporting the mean and median arrival delay per airport. Exclude any destination with under 10 flights. Do this exclusion through code, not manually.
+# 
+# Additionally,
+# 
+# Order both tables in descending mean delay.
+# Both tables should use the airport names not the airport codes.
+# Both tables should print all rows.
+library(data.table)
+library(nycflights13)
+
+flights_dt <- copy(flights)
+setDT(flights_dt)
+airports_dt <- copy(airports)
+setDT(airports_dt)
+
+# Departure delays per airport
+departure_delay <- flights_dt[
+  , .(mean_delay = mean(dep_delay, na.rm = TRUE),
+      med_delay = median(dep_delay, na.rm = TRUE),
+      numflights = .N),
+  by = origin
+][
+  numflights >= 10,
+  ][
+    , faa := origin
+  ][
+    airports_dt, on = .(faa),
+    name := i.name
+  ][
+    , .(name, mean_delay, med_delay)
+  ][
+    order(-mean_delay)  # descending mean delay
+  ]
+departure_delay
+
+# Arrival delays per airport
+arrival_delay <- flights_dt[
+  , .(mean_delay = mean(arr_delay, na.rm = TRUE),
+      med_delay = median(arr_delay, na.rm = TRUE),
+      numflights = .N),
+  by = dest
+][
+  numflights >= 10,
+  ][
+    , faa := dest
+  ][
+    airports_dt, on = .(faa),
+    name := i.name
+  ][
+    , .(name, mean_delay, med_delay)
+  ][
+    order(-mean_delay)  # descending mean delay
+  ]
+arrival_delay
+```
+
+```{r}
+# b. How many flights did the aircraft model with the fastest average speed take? Produce a tibble with 1 row, and entries for the model, average speed (in MPH) and number of flights.
+library(data.table)
+library(nycflights13)
+library(tidyr)#for tibble requirement
+
+flights_dt <- copy(flights)
+setDT(flights_dt)
+planes_dt <- copy(planes)
+setDT(planes_dt)
+
+# Calculate avg
+flights_dt <- flights_dt[
+  !is.na(air_time) & !is.na(distance),
+  .(time = air_time / 60,
+    mph = distance / (air_time / 60)),
+  by = tailnum
+]
+fastest_aircraft <- merge(flights_dt, planes_dt[, .(tailnum, model)], by = "tailnum")
+
+result <- fastest_aircraft[
+  , .(avgmph = mean(mph, na.rm = TRUE),
+      nflights = .N),
+  by = model
+]
+
+# Tibble
+result <- result[order(-avgmph)][1]
+result_tibble <- as_tibble(result)
+result_tibble
+```
