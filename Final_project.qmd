@@ -1,0 +1,155 @@
+---
+title: "Final_Project"
+format: 
+  html:
+    embed-resources: true
+---
+
+## Stats 506 Final Project JG
+
+GitHub link:https://github.com/waibibabodoge/STATS506.git
+
+```{r}
+medical <- read.csv(
+    "/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Final_Project/Medicare/2022/MUP_PHY_R24_P05_V10_D22_Geo.csv",
+    na.strings = c("", "NA", "NULL")
+)
+tax <- read.csv(
+    "/Users/jiayiguo/Desktop/UMich/Fall24/STATS506/Final_Project/20income_tax.csv",
+    na.strings = c("", "NA", "NULL")
+)
+```
+
+```{r}
+library(data.table)
+
+# since state in medical and tax are in 2 ways make them same
+state_abbreviations <- data.table(
+  state_full = c("Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming"),
+  state_abbr = c("AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY")
+)
+
+# use data.table since the dataset is too large to directly operate on
+setDT(medical)
+setDT(tax)
+
+#data clean up
+medical_clean <- medical[Rndrng_Prvdr_Geo_Desc != "National"]
+medical_clean <- merge(medical_clean, state_abbreviations, by.x = "Rndrng_Prvdr_Geo_Desc", by.y = "state_full", all.x = TRUE)
+
+medical_clean[, State_Abbr := ifelse(is.na(state_abbr), Rndrng_Prvdr_Geo_Desc, state_abbr)]
+medical_clean[, state_abbr := NULL]
+
+medical_subset <- medical_clean[, .(State_Abbr, Tot_Srvcs)]
+tax_subset <- tax[, .(STATE, A00200)]
+
+tax_subset_unique <- tax[, .(A00200 = mean(A00200, na.rm = TRUE)), by = STATE]
+# merge
+setkey(medical_subset, State_Abbr)
+setkey(tax_subset_unique, STATE)
+merged_data <- medical_subset[tax_subset_unique, on = .(State_Abbr = STATE), nomatch = NA]
+```
+
+```{r}
+library(data.table)
+library(plotly)
+
+#get average
+state_level_data <- merged_data[, .(
+  avg_services = mean(Tot_Srvcs, na.rm = TRUE),         
+  avg_income = mean(A00200, na.rm = TRUE)
+), by = State_Abbr]
+state_level_data <- na.omit(state_level_data)
+
+# Regression model
+lm_model <- lm(avg_services ~ avg_income, data = state_level_data)
+summary(lm_model)
+
+state_level_data[, predicted_services := predict(lm_model, newdata = state_level_data)]
+
+plot <- plot_ly() %>%
+  add_trace(data = state_level_data, 
+            x = ~avg_income, 
+            y = ~avg_services, 
+            type = 'scatter', 
+            mode = 'markers', 
+            marker = list(size = 12, color = 'blue', opacity = 0.6, line = list(width = 2, color = 'black')),
+            text = ~State_Abbr, hoverinfo = 'text') %>%
+  add_trace(data = state_level_data, 
+            x = ~avg_income, 
+            y = ~predicted_services, 
+            type = 'scatter', 
+            mode = 'lines',
+            name = 'Regression Line', 
+            line = list(color = 'red', width = 2)) %>%
+  layout(title = "Average Income vs Average Healthcare Services by State",
+         xaxis = list(title = "Average Income (A00200)"),
+         yaxis = list(title = "Average Healthcare Services (Tot_Srvcs)"),
+         hovermode = 'closest')
+plot
+```
+
+```{r}
+#Due to the small r^2, try to transform the data
+library(data.table)
+state_level_data <- merged_data[, .(
+  avg_services = mean(Tot_Srvcs, na.rm = TRUE),         
+  avg_income = mean(A00200, na.rm = TRUE)
+), by = State_Abbr]
+state_level_data <- na.omit(state_level_data)
+
+state_level_data[, log_avg_services := log(avg_services)]
+state_level_data[, log_avg_income := log(avg_income)]
+lm_model_transformed <- lm(log_avg_services ~ log_avg_income, data = state_level_data)
+summary(lm_model_transformed)
+```
+
+```{r}
+library(data.table)
+library(plotly)
+
+state_level_data <- merged_data[, .(
+  avg_services = mean(Tot_Srvcs, na.rm = TRUE),
+  avg_income = mean(A00200, na.rm = TRUE)
+), by = State_Abbr]
+
+#get the gergraphical plot based on average services per state
+plot_services <- plot_geo(state_level_data) %>%
+  add_trace(
+    locations = state_level_data$State_Abbr,
+    locationmode = 'USA-states',
+    z = state_level_data$avg_services,
+    text = paste("State: ", state_level_data$State_Abbr, "<br>Avg Services: ", round(state_level_data$avg_services, 2)),
+    hoverinfo = 'text',
+    colorscale = 'Viridis',
+    colorbar = list(title = 'Avg Healthcare Services')
+  ) %>%
+  layout(
+    title = "Average Healthcare Services by State",
+    geo = list(
+      scope = 'usa',
+      projection = list(type = 'albers usa')
+    )
+  )
+
+#get the gergraphical plot based on average income per state
+plot_income <- plot_geo(state_level_data) %>%
+  add_trace(
+    locations = state_level_data$State_Abbr,
+    locationmode = 'USA-states',
+    z = state_level_data$avg_income,
+    text = paste("State: ", state_level_data$State_Abbr, "<br>Avg Income: $", round(state_level_data$avg_income, 2)),
+    hoverinfo = 'text',
+    colorscale = 'Blues',
+    colorbar = list(title = 'Avg Income')
+  ) %>%
+  layout(
+    title = "Average Income by State",
+    geo = list(
+      scope = 'usa',
+      projection = list(type = 'albers usa')
+    )
+  )
+plot_services
+plot_income
+```
